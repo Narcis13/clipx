@@ -1,0 +1,19 @@
+import os
+from pathlib import Path
+
+class FileProcessor:
+    def __init__(self, base_dir: str):
+        self.base_dir = Path(base_dir)
+
+    def process_files(self):
+        for f in self.base_dir.glob("**/*.txt"):
+            self._handle_file(f)
+
+    def _handle_file(self, path: Path):
+        print(f"Processing {path}")
+        content = path.read_text()
+        return content.strip()
+
+if __name__ == "__main__":
+    processor = FileProcessor("/tmp/data")
+    processor.process_files()

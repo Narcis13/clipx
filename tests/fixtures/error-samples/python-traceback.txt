@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/app/main.py", line 45, in <module>
+    result = process_data(input_data)
+  File "/app/processor.py", line 23, in process_data
+    return json.loads(raw)
+  File "/usr/lib/python3.11/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+json.decoder.JSONDecodeError: Expecting ',' delimiter: line 3 column 15 (char 42)
