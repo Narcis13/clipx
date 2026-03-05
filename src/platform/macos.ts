@@ -37,3 +37,15 @@ export async function readHTML(): Promise<string | null> {
   const result = await $`osascript -e ${script}`.text();
   return result || null;
 }
+
+export async function readRTF(): Promise<string | null> {
+  const script = `
+    use framework "AppKit"
+    set pb to current application's NSPasteboard's generalPasteboard()
+    set rtfData to pb's stringForType:"public.rtf"
+    if rtfData is missing value then return ""
+    return rtfData as text
+  `;
+  const result = await $`osascript -e ${script}`.text();
+  return result || null;
+}

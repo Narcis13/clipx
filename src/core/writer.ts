@@ -1,4 +1,6 @@
 import { getClipboard } from "../platform/index.js";
+import { detect } from "./detector.js";
+import { addEntry } from "../history/store.js";
 
 let savedContent: string | null = null;
 let restoreTimer: ReturnType<typeof setTimeout> | null = null;
@@ -30,6 +32,19 @@ export async function writeClipboard(
   }
 
   await clipboard.writePlain(content);
+
+  // Auto-record to history (dedup handled by addEntry)
+  try {
+    const detection = detect(content);
+    addEntry({
+      content,
+      type: detection.type,
+      language: detection.language,
+      confidence: detection.confidence,
+    });
+  } catch {
+    // History recording is best-effort
+  }
 }
 
 export async function restoreClipboard(): Promise<boolean> {

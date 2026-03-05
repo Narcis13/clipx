@@ -5,6 +5,8 @@ import {
   typeClipboard,
 } from "../core/reader.js";
 import { writeClipboard } from "../core/writer.js";
+import { query as historyQuery } from "../history/store.js";
+import { push as stackPush, pop as stackPop } from "../history/stack.js";
 
 export async function handleClipboardRead(args: {
   format?: string;
@@ -55,5 +57,59 @@ export async function handleClipboardType(): Promise<{
   const result = await typeClipboard();
   return {
     content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+  };
+}
+
+export async function handleClipboardHistory(args: {
+  limit?: number;
+  type?: string;
+  search?: string;
+}): Promise<{ content: Array<{ type: "text"; text: string }> }> {
+  const entries = historyQuery({
+    limit: args.limit,
+    type: args.type,
+    search: args.search,
+  });
+
+  return {
+    content: [{ type: "text", text: JSON.stringify(entries, null, 2) }],
+  };
+}
+
+export async function handleClipboardStackPush(): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+}> {
+  const item = await stackPush();
+  const preview =
+    item.content.length > 80
+      ? item.content.slice(0, 80) + "..."
+      : item.content;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Pushed to stack: [${item.type}] ${preview}`,
+      },
+    ],
+  };
+}
+
+export async function handleClipboardStackPop(): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+}> {
+  const item = await stackPop();
+  const preview =
+    item.content.length > 80
+      ? item.content.slice(0, 80) + "..."
+      : item.content;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Popped from stack and written to clipboard: [${item.type}] ${preview}`,
+      },
+    ],
   };
 }

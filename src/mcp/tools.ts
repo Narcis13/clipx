@@ -23,6 +23,16 @@ export const clipboardPeekSchema = z.object({});
 
 export const clipboardTypeSchema = z.object({});
 
+export const clipboardHistorySchema = z.object({
+  limit: z.number().optional().describe("Number of entries to return (default 20)"),
+  type: z.string().optional().describe("Filter by content type (e.g. code, json, url, text)"),
+  search: z.string().optional().describe("Full-text search in content"),
+});
+
+export const clipboardStackPushSchema = z.object({});
+
+export const clipboardStackPopSchema = z.object({});
+
 export const TOOL_DEFINITIONS = [
   {
     name: "clipboard_read" as const,
@@ -75,6 +85,47 @@ export const TOOL_DEFINITIONS = [
     name: "clipboard_type" as const,
     description:
       "Detect the type of content currently on the clipboard without returning the full content. Returns type, language (if code), confidence, and metadata. Use when you need to know what kind of content is on the clipboard to decide your next action.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "clipboard_history" as const,
+    description:
+      "Query the clipboard history stored in SQLite. Returns recent clipboard entries with type detection metadata. Use to find previously copied content, search for specific clips, or filter by content type.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        limit: {
+          type: "number",
+          description: "Number of entries to return (default 20)",
+        },
+        type: {
+          type: "string",
+          description:
+            "Filter by content type (e.g. code, json, url, text, sql, error, secret)",
+        },
+        search: {
+          type: "string",
+          description: "Full-text search in clipboard content",
+        },
+      },
+    },
+  },
+  {
+    name: "clipboard_stack_push" as const,
+    description:
+      "Push the current clipboard contents onto the clipboard stack. The stack preserves multiple clipboard items for later retrieval. Use when you need to save the current clipboard before overwriting it.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "clipboard_stack_pop" as const,
+    description:
+      "Pop the top item from the clipboard stack and write it to the clipboard. Removes the item from the stack. Use to restore a previously saved clipboard entry.",
     inputSchema: {
       type: "object" as const,
       properties: {},

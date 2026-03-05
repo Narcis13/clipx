@@ -6,6 +6,7 @@ export interface PlatformClipboard {
   writePlain(content: string): Promise<void>;
   readRichTypes?(): Promise<string[]>;
   readHTML?(): Promise<string | null>;
+  readRTF?(): Promise<string | null>;
 }
 
 function getPlatform(): string {

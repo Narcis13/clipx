@@ -10,6 +10,9 @@ import {
   handleClipboardWrite,
   handleClipboardPeek,
   handleClipboardType,
+  handleClipboardHistory,
+  handleClipboardStackPush,
+  handleClipboardStackPop,
 } from "./handlers.js";
 
 export async function startMcpServer(): Promise<void> {
@@ -48,6 +51,17 @@ export async function startMcpServer(): Promise<void> {
 
       case "clipboard_type":
         return handleClipboardType();
+
+      case "clipboard_history":
+        return handleClipboardHistory(
+          (args ?? {}) as { limit?: number; type?: string; search?: string }
+        );
+
+      case "clipboard_stack_push":
+        return handleClipboardStackPush();
+
+      case "clipboard_stack_pop":
+        return handleClipboardStackPop();
 
       default:
         throw new Error(`Unknown tool: ${name}`);

@@ -1,6 +1,7 @@
 import { getClipboard } from "../platform/index.js";
 import { detect, type DetectionResult } from "./detector.js";
 import { detectSecret, redactContent } from "./secrets.js";
+import { addEntry } from "../history/store.js";
 
 export interface ReadResult {
   type: string;
@@ -27,6 +28,18 @@ export async function readClipboard(): Promise<ReadResult> {
   // Redact secrets by default
   const outputContent =
     detection.type === "secret" ? redactContent(content) : content;
+
+  // Auto-record to history (dedup handled by addEntry)
+  try {
+    addEntry({
+      content,
+      type: detection.type,
+      language: detection.language,
+      confidence: detection.confidence,
+    });
+  } catch {
+    // History recording is best-effort
+  }
 
   return {
     type: detection.type,
@@ -71,4 +84,46 @@ export async function typeClipboard(): Promise<DetectionResult> {
   const clipboard = getClipboard();
   const content = await clipboard.readPlain();
   return detect(content);
+}
+
+export interface RichReadResult {
+  plain: string;
+  html?: string | null;
+  rtf?: string | null;
+  types?: string[];
+}
+
+export async function readClipboardHTML(): Promise<string | null> {
+  const clipboard = getClipboard();
+  if (!clipboard.readHTML) {
+    throw new Error("HTML clipboard reading is not supported on this platform");
+  }
+  return clipboard.readHTML();
+}
+
+export async function readClipboardRTF(): Promise<string | null> {
+  const clipboard = getClipboard();
+  if (!clipboard.readRTF) {
+    throw new Error("RTF clipboard reading is not supported on this platform");
+  }
+  return clipboard.readRTF();
+}
+
+export async function readClipboardRich(): Promise<RichReadResult> {
+  const clipboard = getClipboard();
+  const plain = await clipboard.readPlain();
+
+  const result: RichReadResult = { plain };
+
+  if (clipboard.readRichTypes) {
+    result.types = await clipboard.readRichTypes();
+  }
+  if (clipboard.readHTML) {
+    result.html = await clipboard.readHTML();
+  }
+  if (clipboard.readRTF) {
+    result.rtf = await clipboard.readRTF();
+  }
+
+  return result;
 }
