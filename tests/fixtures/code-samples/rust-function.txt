@@ -1,0 +1,16 @@
+use std::collections::HashMap;
+
+pub fn count_words(text: &str) -> HashMap<&str, usize> {
+    let mut counts = HashMap::new();
+    for word in text.split_whitespace() {
+        let count = counts.entry(word).or_insert(0);
+        *count += 1;
+    }
+    counts
+}
+
+fn main() {
+    let text = "hello world hello rust world";
+    let counts = count_words(text);
+    println!("{:?}", counts);
+}

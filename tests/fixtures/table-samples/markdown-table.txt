@@ -1,0 +1,6 @@
+| Command | Description | Priority |
+|---------|-------------|----------|
+| read    | Read clipboard | P0 |
+| write   | Write clipboard | P0 |
+| type    | Detect type | P0 |
+| peek    | Quick preview | P0 |

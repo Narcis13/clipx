@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [ -z "${1:-}" ]; then
+    echo "Usage: $0 <directory>"
+    exit 1
+fi
+
+DIR="$1"
+COUNT=$(find "$DIR" -type f | wc -l)
+echo "Found $COUNT files in $DIR"
+
+for f in "$DIR"/*.log; do
+    if [ -f "$f" ]; then
+        echo "Processing $f"
+        grep -c "ERROR" "$f" || true
+    fi
+done

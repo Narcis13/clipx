@@ -1,0 +1,4 @@
+Name	Age	City	Role
+Alice	30	New York	Engineer
+Bob	25	San Francisco	Designer
+Charlie	35	London	Manager
