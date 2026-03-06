@@ -625,11 +625,12 @@ setupCmd
     const claudeDir = path.join(home, ".claude");
     const mcpConfigPath = path.join(claudeDir, "mcp.json");
     const skillsDir = path.join(claudeDir, "skills");
-    const skillDestPath = path.join(skillsDir, "clipboard.md");
+    const skillDestDir = path.join(skillsDir, "clipboard");
+    const skillDestPath = path.join(skillDestDir, "SKILL.md");
 
     // Resolve skill source relative to this binary
     const selfDir = path.dirname(Bun.argv[1] ?? "");
-    const skillSrcPath = path.resolve(selfDir, "../skills/clipboard.md");
+    const skillSrcPath = path.resolve(selfDir, "../skills/clipboard/SKILL.md");
 
     const dry = opts.dryRun;
     const doMcp = !opts.skillOnly;
@@ -688,15 +689,15 @@ setupCmd
           fs.readFileSync(skillDestPath, "utf8") === src;
 
         if (alreadyInstalled) {
-          console.log(`Skill: clipboard.md already up to date at ${skillDestPath}`);
+          console.log(`Skill: clipboard/SKILL.md already up to date at ${skillDestPath}`);
         } else if (dry) {
           console.log(`[dry-run] Would copy skill to ${skillDestPath}`);
         } else {
-          if (!fs.existsSync(skillsDir)) {
-            fs.mkdirSync(skillsDir, { recursive: true });
+          if (!fs.existsSync(skillDestDir)) {
+            fs.mkdirSync(skillDestDir, { recursive: true });
           }
           fs.writeFileSync(skillDestPath, src, "utf8");
-          console.log(`Skill: installed clipboard.md to ${skillDestPath}`);
+          console.log(`Skill: installed clipboard/SKILL.md to ${skillDestPath}`);
           changed = true;
         }
       }
@@ -719,7 +720,7 @@ setupCmd
       console.log("");
       console.log("To verify:");
       console.log(`  cat ${mcpConfigPath}`);
-      console.log(`  cat ${skillDestPath}`);
+      console.log(`  ls ${skillDestDir}`);
     }
   });
 

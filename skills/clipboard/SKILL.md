@@ -337,8 +337,8 @@ To start the MCP server: `clipx mcp` (stdio transport).
 
 ## Setup
 
-**Skill mode** (recommended) — copy this file to `~/.claude/skills/clipboard.md` for global use,
-or `.claude/skills/clipboard.md` for project-specific use.
+**Skill mode** (recommended) — copy this folder to `~/.claude/skills/clipboard/` for global use,
+or `.claude/skills/clipboard/` for project-specific use. The folder must contain `SKILL.md`.
 
 **MCP mode** (optional fallback) — add to `~/.claude/mcp.json`:
 
