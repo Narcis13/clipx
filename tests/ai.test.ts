@@ -161,8 +161,8 @@ describe("ai/config", () => {
     await setConfig({ provider: "anthropic", model: "claude-haiku-4-5-20251001" });
 
     const saved = JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
-    expect(saved.provider).toBe("anthropic");
-    expect(saved.model).toBe("claude-haiku-4-5-20251001");
+    expect(saved.ai.provider).toBe("anthropic");
+    expect(saved.ai.model).toBe("claude-haiku-4-5-20251001");
   });
 
   test("resolveApiKey() prefers env var", async () => {

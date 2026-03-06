@@ -1,7 +1,7 @@
 import { getClipboard } from "../platform/index.js";
-import { detect, type DetectionResult } from "./detector.js";
+import { detect, detectWithContext, type DetectionResult, type RichContext } from "./detector.js";
 import { detectSecret, redactContent } from "./secrets.js";
-import { addEntry } from "../history/store.js";
+import { addEntry, shouldExcludeType } from "../history/store.js";
 
 export interface ReadResult {
   type: string;
@@ -20,10 +20,22 @@ export interface PeekResult {
   preview: string;
 }
 
+async function getRichContext(clipboard: ReturnType<typeof getClipboard>): Promise<import("./detector.js").RichContext> {
+  const context: import("./detector.js").RichContext = {};
+  if (clipboard.hasImage) context.hasImage = await clipboard.hasImage();
+  if (clipboard.hasFiles) context.hasFiles = await clipboard.hasFiles();
+  return context;
+}
+
 export async function readClipboard(): Promise<ReadResult> {
   const clipboard = getClipboard();
   const content = await clipboard.readPlain();
-  const detection = detect(content);
+
+  // Use rich context if Swift bridge is available
+  const richContext = await getRichContext(clipboard);
+  const detection = (richContext.hasImage || richContext.hasFiles)
+    ? detectWithContext(content, richContext)
+    : detect(content);
 
   // Redact secrets by default
   const outputContent =
@@ -31,12 +43,14 @@ export async function readClipboard(): Promise<ReadResult> {
 
   // Auto-record to history (dedup handled by addEntry)
   try {
-    addEntry({
-      content,
-      type: detection.type,
-      language: detection.language,
-      confidence: detection.confidence,
-    });
+    if (!shouldExcludeType(detection.type)) {
+      addEntry({
+        content,
+        type: detection.type,
+        language: detection.language,
+        confidence: detection.confidence,
+      });
+    }
   } catch {
     // History recording is best-effort
   }
@@ -59,7 +73,11 @@ export async function readClipboardRaw(): Promise<string> {
 export async function peekClipboard(): Promise<PeekResult> {
   const clipboard = getClipboard();
   const content = await clipboard.readPlain();
-  const detection = detect(content);
+
+  const richContext = await getRichContext(clipboard);
+  const detection = (richContext.hasImage || richContext.hasFiles)
+    ? detectWithContext(content, richContext)
+    : detect(content);
 
   const previewLength = 200;
   let preview: string;
@@ -83,7 +101,64 @@ export async function peekClipboard(): Promise<PeekResult> {
 export async function typeClipboard(): Promise<DetectionResult> {
   const clipboard = getClipboard();
   const content = await clipboard.readPlain();
+
+  // Use rich context if Swift bridge is available
+  if (clipboard.hasImage && clipboard.hasFiles) {
+    const [hasImage, hasFiles] = await Promise.all([
+      clipboard.hasImage(),
+      clipboard.hasFiles(),
+    ]);
+    if (hasImage || hasFiles) {
+      return detectWithContext(content, { hasImage, hasFiles });
+    }
+  }
+
   return detect(content);
+}
+
+export interface ImageReadResult {
+  type: "image";
+  data: string; // base64-encoded PNG
+  encoding: "base64";
+}
+
+export async function readClipboardImage(): Promise<ImageReadResult | null> {
+  const clipboard = getClipboard();
+  if (!clipboard.readImage) return null;
+  const data = await clipboard.readImage();
+  if (!data) return null;
+
+  try {
+    addEntry({
+      content: `[image data: ${data.length} bytes base64]`,
+      type: "image",
+      confidence: 0.99,
+    });
+  } catch {
+    // best-effort
+  }
+
+  return { type: "image", data, encoding: "base64" };
+}
+
+export async function readClipboardFiles(): Promise<string[] | null> {
+  const clipboard = getClipboard();
+  if (!clipboard.readFiles) return null;
+  const files = await clipboard.readFiles();
+  if (!files || files.length === 0) return files;
+
+  const content = files.join("\n");
+  try {
+    addEntry({
+      content,
+      type: "file-ref",
+      confidence: 0.99,
+    });
+  } catch {
+    // best-effort
+  }
+
+  return files;
 }
 
 export interface RichReadResult {

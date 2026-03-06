@@ -409,7 +409,7 @@ clipx convert --from base64  # Decode from base64
    - Command reference
    - Workflow patterns (clipboard-first, multi-source, safe delivery)
    - Security rules (secrets, no logging, no external API without consent)
-2. Dual mode: references MCP tools when MCP is available, falls back to CLI
+2. Dual mode: references CLI first , falls back to MCP tools when MCP is available
 
 **Estimated complexity:** Low — documentation only, no code.
 

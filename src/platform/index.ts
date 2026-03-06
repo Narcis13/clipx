@@ -7,6 +7,11 @@ export interface PlatformClipboard {
   readRichTypes?(): Promise<string[]>;
   readHTML?(): Promise<string | null>;
   readRTF?(): Promise<string | null>;
+  readImage?(): Promise<string | null>;
+  readFiles?(): Promise<string[] | null>;
+  hasImage?(): Promise<boolean>;
+  hasFiles?(): Promise<boolean>;
+  hasSwiftBridge?(): boolean;
 }
 
 function getPlatform(): string {

@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 
 import { Command } from "commander";
-import { readClipboard, readClipboardRaw, readClipboardHTML, readClipboardRTF, readClipboardRich, peekClipboard, typeClipboard } from "../src/core/reader.js";
+import { readClipboard, readClipboardRaw, readClipboardHTML, readClipboardRTF, readClipboardRich, readClipboardImage, readClipboardFiles, peekClipboard, typeClipboard } from "../src/core/reader.js";
 import { writeClipboard } from "../src/core/writer.js";
 import { formatOutput } from "../src/utils/output.js";
 import { autoFormat, formatJSON, formatSQL, formatCode } from "../src/transforms/formatter.js";
+import { loadConfig, saveConfig, getConfigValue, getConfigPath } from "../src/config.js";
 import { autoValidate, validateJSON, validateURL, validateSQL } from "../src/transforms/validator.js";
 import * as stack from "../src/history/stack.js";
 import { query as historyQuery, closeDb } from "../src/history/store.js";
@@ -27,9 +28,39 @@ program
   .option("--json", "Output as JSON")
   .option("--html", "Read HTML representation")
   .option("--rtf", "Read RTF representation")
+  .option("--image", "Read image from clipboard (base64 PNG)")
+  .option("--files", "Read file references from clipboard")
   .option("--rich", "Read all available representations")
   .action(async (opts) => {
     try {
+      if (opts.image) {
+        const result = await readClipboardImage();
+        if (result) {
+          if (opts.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else {
+            process.stdout.write(result.data);
+          }
+        } else {
+          console.error("No image data on clipboard (Swift bridge may not be available)");
+          process.exit(1);
+        }
+        return;
+      }
+      if (opts.files) {
+        const files = await readClipboardFiles();
+        if (files && files.length > 0) {
+          if (opts.json) {
+            console.log(JSON.stringify({ type: "file-ref", files }, null, 2));
+          } else {
+            files.forEach((f) => console.log(f));
+          }
+        } else {
+          console.error("No file references on clipboard (Swift bridge may not be available)");
+          process.exit(1);
+        }
+        return;
+      }
       if (opts.rich) {
         const result = await readClipboardRich();
         console.log(JSON.stringify(result, null, 2));
@@ -502,6 +533,64 @@ aiCmd
     }
   });
 
+// --- clipx config ---
+program
+  .command("config [key] [value]")
+  .description("View or set clipx configuration")
+  .option("--json", "Output as JSON")
+  .option("--path", "Show config file path")
+  .action((key: string | undefined, value: string | undefined, opts) => {
+    try {
+      if (opts.path) {
+        console.log(getConfigPath());
+        return;
+      }
+
+      // No args: show full config
+      if (!key) {
+        const config = loadConfig();
+        if (opts.json) {
+          console.log(JSON.stringify(config, null, 2));
+        } else {
+          console.log(JSON.stringify(config, null, 2));
+        }
+        return;
+      }
+
+      // Key only: get value
+      if (value === undefined) {
+        const val = getConfigValue(key);
+        if (val === undefined) {
+          console.error(`Unknown config key: ${key}`);
+          process.exit(1);
+        }
+        if (typeof val === "object") {
+          console.log(JSON.stringify(val, null, 2));
+        } else {
+          console.log(String(val));
+        }
+        return;
+      }
+
+      // Key + value: set
+      let parsed: unknown = value;
+      if (value === "true") parsed = true;
+      else if (value === "false") parsed = false;
+      else if (value === "null") parsed = null;
+      else if (/^\d+$/.test(value)) parsed = parseInt(value, 10);
+      else if (/^\d+\.\d+$/.test(value)) parsed = parseFloat(value);
+      else if (value.startsWith("[") || value.startsWith("{")) {
+        try { parsed = JSON.parse(value); } catch { /* keep as string */ }
+      }
+
+      saveConfig(key, parsed);
+      console.error(`Set ${key} = ${JSON.stringify(parsed)}`);
+    } catch (err) {
+      console.error(`Error: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  });
+
 // --- clipx mcp ---
 program
   .command("mcp")
@@ -513,6 +602,124 @@ program
     } catch (err) {
       console.error(`Error starting MCP server: ${(err as Error).message}`);
       process.exit(1);
+    }
+  });
+
+// --- clipx setup ---
+const setupCmd = program
+  .command("setup")
+  .description("Set up clipx integrations");
+
+setupCmd
+  .command("claude-code")
+  .description("Configure clipx as an MCP server for Claude Code and install the clipboard skill")
+  .option("--skill-only", "Only install the skill file, skip MCP config")
+  .option("--mcp-only", "Only update MCP config, skip skill file")
+  .option("--dry-run", "Show what would be done without making changes")
+  .action(async (opts) => {
+    const path = await import("node:path");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+
+    const home = os.homedir();
+    const claudeDir = path.join(home, ".claude");
+    const mcpConfigPath = path.join(claudeDir, "mcp.json");
+    const skillsDir = path.join(claudeDir, "skills");
+    const skillDestPath = path.join(skillsDir, "clipboard.md");
+
+    // Resolve skill source relative to this binary
+    const selfDir = path.dirname(Bun.argv[1] ?? "");
+    const skillSrcPath = path.resolve(selfDir, "../skills/clipboard.md");
+
+    const dry = opts.dryRun;
+    const doMcp = !opts.skillOnly;
+    const doSkill = !opts.mcpOnly;
+
+    let changed = false;
+
+    // --- MCP config ---
+    if (doMcp) {
+      const mcpEntry = {
+        command: "clipx",
+        args: ["mcp"],
+        description: "Intelligent clipboard access with type detection",
+      };
+
+      let config: Record<string, unknown> = {};
+      if (fs.existsSync(mcpConfigPath)) {
+        try {
+          config = JSON.parse(fs.readFileSync(mcpConfigPath, "utf8"));
+        } catch {
+          console.error(`Warning: Could not parse ${mcpConfigPath} — will overwrite`);
+        }
+      }
+
+      if (!config.mcpServers || typeof config.mcpServers !== "object") {
+        config.mcpServers = {};
+      }
+      const servers = config.mcpServers as Record<string, unknown>;
+      const alreadySet = JSON.stringify(servers.clipboard) === JSON.stringify(mcpEntry);
+
+      if (alreadySet) {
+        console.log(`MCP: clipboard server already configured in ${mcpConfigPath}`);
+      } else {
+        servers.clipboard = mcpEntry;
+        if (dry) {
+          console.log(`[dry-run] Would write MCP config to ${mcpConfigPath}:`);
+          console.log(JSON.stringify(config, null, 2));
+        } else {
+          if (!fs.existsSync(claudeDir)) {
+            fs.mkdirSync(claudeDir, { recursive: true });
+          }
+          fs.writeFileSync(mcpConfigPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+          console.log(`MCP: updated ${mcpConfigPath}`);
+          changed = true;
+        }
+      }
+    }
+
+    // --- Skill file ---
+    if (doSkill) {
+      if (!fs.existsSync(skillSrcPath)) {
+        console.error(`Warning: skill source not found at ${skillSrcPath} — skipping skill install`);
+      } else {
+        const src = fs.readFileSync(skillSrcPath, "utf8");
+        const alreadyInstalled = fs.existsSync(skillDestPath) &&
+          fs.readFileSync(skillDestPath, "utf8") === src;
+
+        if (alreadyInstalled) {
+          console.log(`Skill: clipboard.md already up to date at ${skillDestPath}`);
+        } else if (dry) {
+          console.log(`[dry-run] Would copy skill to ${skillDestPath}`);
+        } else {
+          if (!fs.existsSync(skillsDir)) {
+            fs.mkdirSync(skillsDir, { recursive: true });
+          }
+          fs.writeFileSync(skillDestPath, src, "utf8");
+          console.log(`Skill: installed clipboard.md to ${skillDestPath}`);
+          changed = true;
+        }
+      }
+    }
+
+    // --- Summary ---
+    if (!dry) {
+      console.log("");
+      if (changed) {
+        console.log("Setup complete. Restart Claude Code to apply changes.");
+      } else {
+        console.log("Nothing to do — clipx is already configured for Claude Code.");
+      }
+      console.log("");
+      console.log("Usage in Claude Code:");
+      console.log("  • The clipboard skill activates automatically when you say");
+      console.log('    "fix this", "what\'s on my clipboard", "I copied...", etc.');
+      console.log("  • MCP tools (clipboard_read, clipboard_write, etc.) are available");
+      console.log("    as structured fallbacks when the CLI is not on PATH.");
+      console.log("");
+      console.log("To verify:");
+      console.log(`  cat ${mcpConfigPath}`);
+      console.log(`  cat ${skillDestPath}`);
     }
   });
 

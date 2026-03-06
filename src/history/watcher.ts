@@ -2,6 +2,7 @@ import { getClipboard } from "../platform/index.js";
 import { detect } from "../core/detector.js";
 import { detectSecret } from "../core/secrets.js";
 import { addEntry, getLastHash, type AddEntryInput } from "./store.js";
+import { loadConfig } from "../config.js";
 
 export interface WatchOptions {
   debounce?: number;
@@ -17,7 +18,8 @@ function contentHash(content: string): string {
 }
 
 export async function watch(opts: WatchOptions = {}): Promise<void> {
-  const debounceMs = opts.debounce ?? 300;
+  const config = loadConfig();
+  const debounceMs = opts.debounce ?? config.watch.debounce;
   const clipboard = getClipboard();
 
   // Initialize with current clipboard hash to avoid capturing pre-existing content

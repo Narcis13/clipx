@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { $ } from "bun";
+import { loadConfig } from "../config.js";
 
 export type AIProvider = "openrouter" | "anthropic" | "openai";
 
@@ -31,7 +32,10 @@ const KEYCHAIN_SERVICE = "clipx";
 function readConfigFile(): Partial<AIConfig> {
   if (!existsSync(CONFIG_FILE)) return {};
   try {
-    return JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+    const full = JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+    // Read from "ai" section, fall back to root for legacy compat
+    if (full.ai && typeof full.ai === "object") return full.ai;
+    return full;
   } catch {
     return {};
   }
@@ -42,10 +46,12 @@ function writeConfigFile(config: Partial<AIConfig>): void {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
   const existing = readConfigFile();
-  writeFileSync(
-    CONFIG_FILE,
-    JSON.stringify({ ...existing, ...config }, null, 2) + "\n"
-  );
+  // Write AI settings under the "ai" section
+  const full = existsSync(CONFIG_FILE)
+    ? JSON.parse(readFileSync(CONFIG_FILE, "utf-8"))
+    : {};
+  full.ai = { ...existing, ...config };
+  writeFileSync(CONFIG_FILE, JSON.stringify(full, null, 2) + "\n");
 }
 
 async function readKeychain(provider: AIProvider): Promise<string | null> {
@@ -97,9 +103,10 @@ export async function resolveApiKey(
 }
 
 export async function getConfig(): Promise<AIConfig> {
+  const centralConfig = loadConfig();
   const file = readConfigFile();
-  const provider = (file.provider as AIProvider) || "openrouter";
-  const model = file.model || DEFAULT_MODELS[provider];
+  const provider = (file.provider as AIProvider) || (centralConfig.ai.provider as AIProvider) || "openrouter";
+  const model = file.model || centralConfig.ai.model || DEFAULT_MODELS[provider];
   const apiKey = (await resolveApiKey(provider)) ?? undefined;
   return { provider, model, apiKey };
 }

@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync, existsSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
 import { homedir } from "os";
+import { loadConfig } from "../config.js";
 
 const DATA_DIR = join(homedir(), ".local", "share", "clipx");
 const DB_PATH = join(DATA_DIR, "history.db");
@@ -101,6 +102,11 @@ export interface AddEntryInput {
   type: string;
   language?: string | null;
   confidence: number;
+}
+
+export function shouldExcludeType(type: string): boolean {
+  const config = loadConfig();
+  return config.history.excludeTypes.includes(type);
 }
 
 export function addEntry(input: AddEntryInput, dbPath?: string): HistoryEntry {

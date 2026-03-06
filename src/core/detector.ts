@@ -334,6 +334,37 @@ function isFilePath(content: string): boolean {
   );
 }
 
+export interface RichContext {
+  hasImage?: boolean;
+  hasFiles?: boolean;
+  richTypes?: string[];
+}
+
+export function detectWithContext(
+  content: string,
+  context: RichContext
+): DetectionResult {
+  // Image on clipboard takes priority if no text content
+  if (context.hasImage && (!content || content.trim().length === 0)) {
+    return {
+      type: "image",
+      confidence: 0.99,
+      meta: { source: "clipboard-image" },
+    };
+  }
+
+  // File references via pasteboard types (Finder copies)
+  if (context.hasFiles) {
+    return {
+      type: "file-ref",
+      confidence: 0.99,
+      meta: { source: "pasteboard-files" },
+    };
+  }
+
+  return detect(content);
+}
+
 export function detect(content: string): DetectionResult {
   if (!content || content.length === 0) {
     return { type: "unknown", confidence: 0 };
