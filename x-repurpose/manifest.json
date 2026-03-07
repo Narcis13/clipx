@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "X Tweet Repurposer",
+  "version": "1.0.0",
+  "description": "Scrape X feed, find high-engagement tweets in AI/dev niche, generate a new tweet using OpenRouter AI.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tweet Repurposer"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

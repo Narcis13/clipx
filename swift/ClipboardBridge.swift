@@ -2,12 +2,12 @@ import AppKit
 import Foundation
 
 enum Command: String {
-  case types, html, rtf, image, files
+  case types, html, rtf, image, files, source
 }
 
 let args = CommandLine.arguments
 guard args.count > 1, let cmd = Command(rawValue: args[1]) else {
-  print(#"{"error": "Usage: clipboard-bridge <types|html|rtf|image|files>"}"#)
+  print(#"{"error": "Usage: clipboard-bridge <types|html|rtf|image|files|source>"}"#)
   exit(1)
 }
 
@@ -42,4 +42,31 @@ case .files:
     let json = try! JSONSerialization.data(withJSONObject: paths)
     print(String(data: json, encoding: .utf8)!)
   }
+
+case .source:
+  var result: [String: Any] = [:]
+
+  // Frontmost application via NSWorkspace
+  if let app = NSWorkspace.shared.frontmostApplication {
+    result["app"] = app.localizedName ?? ""
+    result["bundleId"] = app.bundleIdentifier ?? ""
+    result["pid"] = app.processIdentifier
+  }
+
+  // Source URL from pasteboard types (browsers embed the page URL)
+  let urlTypes = [
+    "org.chromium.source-url",   // Chrome, Edge, Brave, etc.
+    "public.url",                // Safari, generic
+    "com.apple.safari.url",      // Safari-specific
+  ]
+  for type in urlTypes {
+    if let url = pb.string(forType: NSPasteboard.PasteboardType(rawValue: type)) {
+      result["url"] = url
+      result["urlType"] = type
+      break
+    }
+  }
+
+  let json = try! JSONSerialization.data(withJSONObject: result)
+  print(String(data: json, encoding: .utf8)!)
 }

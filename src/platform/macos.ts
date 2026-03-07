@@ -154,3 +154,60 @@ export async function hasFiles(): Promise<boolean> {
   const types = await readRichTypes();
   return types.some((t) => t.includes("public.file-url") || t.includes("NSFilenamesPboardType"));
 }
+
+export interface SourceInfo {
+  app?: string;
+  bundleId?: string;
+  pid?: number;
+  url?: string;
+  urlType?: string;
+}
+
+const URL_APP_MAP: Record<string, { app: string; bundleId: string }> = {
+  "org.chromium.source-url": { app: "Google Chrome", bundleId: "com.google.Chrome" },
+  "com.apple.safari.url": { app: "Safari", bundleId: "com.apple.Safari" },
+};
+
+const URL_PREFIX_APP_MAP: [string, { app: string; bundleId: string }][] = [
+  ["vscode-file://", { app: "Visual Studio Code", bundleId: "com.microsoft.VSCode" }],
+  ["https://x.com/", { app: "Google Chrome", bundleId: "com.google.Chrome" }],
+  ["https://twitter.com/", { app: "Google Chrome", bundleId: "com.google.Chrome" }],
+];
+
+function inferAppFromUrl(info: SourceInfo): SourceInfo {
+  // If frontmost app is Terminal/iTerm, the user ran clipx from there —
+  // the real source app is whoever put the data on the pasteboard.
+  const isTerminal = info.bundleId === "com.apple.Terminal"
+    || info.bundleId === "com.googlecode.iterm2"
+    || info.bundleId === "net.kovidgoyal.kitty"
+    || info.bundleId === "com.github.wez.wezterm";
+
+  if (!isTerminal) return info;
+  if (!info.url) return info;
+
+  // Infer from the pasteboard URL type (most reliable)
+  if (info.urlType && URL_APP_MAP[info.urlType]) {
+    const mapped = URL_APP_MAP[info.urlType];
+    return { ...info, app: mapped.app, bundleId: mapped.bundleId };
+  }
+
+  // Infer from URL prefix
+  for (const [prefix, mapped] of URL_PREFIX_APP_MAP) {
+    if (info.url.startsWith(prefix)) {
+      return { ...info, app: mapped.app, bundleId: mapped.bundleId };
+    }
+  }
+
+  return info;
+}
+
+export async function readSource(): Promise<SourceInfo | null> {
+  const result = await runSwiftBridge("source");
+  if (!result) return null;
+  try {
+    const raw = JSON.parse(result) as SourceInfo;
+    return inferAppFromUrl(raw);
+  } catch {
+    return null;
+  }
+}

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tweet Repurposer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e7e9ea;
+      width: 420px;
+      min-height: 500px;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1 span.icon { font-size: 22px; }
+    .subtitle {
+      font-size: 12px;
+      color: #71767b;
+      margin-bottom: 20px;
+    }
+    label {
+      font-size: 13px;
+      color: #71767b;
+      display: block;
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="password"], select, textarea {
+      width: 100%;
+      background: #1a1f2e;
+      border: 1px solid #2f3336;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #e7e9ea;
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #1d9bf0;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > div { flex: 1; }
+    button {
+      width: 100%;
+      padding: 11px;
+      border-radius: 9999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #btn-scrape {
+      background: #1d9bf0;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    #btn-scrape:hover:not(:disabled) { background: #1a8cd8; }
+    #btn-generate {
+      background: #fff;
+      color: #0f1117;
+      margin-bottom: 10px;
+    }
+    #btn-generate:hover:not(:disabled) { background: #e7e9ea; }
+    #btn-generate:disabled, #btn-scrape:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #btn-copy {
+      background: transparent;
+      border: 1px solid #2f3336;
+      color: #e7e9ea;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    #btn-copy:hover { background: #1a1f2e; }
+    .status-bar {
+      background: #1a1f2e;
+      border: 1px solid #2f3336;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #71767b;
+      margin-bottom: 14px;
+      min-height: 40px;
+      line-height: 1.5;
+    }
+    .status-bar.active { color: #1d9bf0; }
+    .status-bar.success { color: #00ba7c; }
+    .status-bar.error { color: #f4212e; }
+    .tweets-found {
+      font-size: 12px;
+      color: #71767b;
+      margin-bottom: 12px;
+    }
+    .tweet-card {
+      background: #1a1f2e;
+      border: 1px solid #2f3336;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .tweet-card .author {
+      color: #1d9bf0;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .tweet-card .text {
+      color: #e7e9ea;
+      margin-bottom: 6px;
+    }
+    .tweet-card .stats {
+      color: #71767b;
+      font-size: 11px;
+    }
+    .output-box {
+      background: #1a1f2e;
+      border: 1px solid #1d9bf0;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: #e7e9ea;
+      margin-bottom: 10px;
+      min-height: 80px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #71767b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #2f3336;
+      margin: 16px 0;
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #1d9bf0;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .char-count {
+      text-align: right;
+      font-size: 11px;
+      color: #71767b;
+      margin-top: -10px;
+      margin-bottom: 10px;
+    }
+    .char-count.over { color: #f4212e; }
+  </style>
+</head>
+<body>
+  <h1><span class="icon">🐦</span> Tweet Repurposer</h1>
+  <p class="subtitle">Scrape X feed → find high-engagement AI/dev tweets → generate new post</p>
+  <!-- Settings -->
+  <label>OpenRouter API Key</label>
+  <input type="password" id="api-key" placeholder="sk-or-v1-..." />
+  <div class="row">
+    <div>
+      <label>Model</label>
+      <select id="model">
+        <option value="anthropic/claude-opus-4-5">Claude Opus 4.5</option>
+        <option value="anthropic/claude-sonnet-4-5" selected>Claude Sonnet 4.5</option>
+        <option value="anthropic/claude-haiku-3-5">Claude Haiku 3.5</option>
+        <option value="openai/gpt-4o">GPT-4o</option>
+        <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+        <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+      </select>
+    </div>
+    <div>
+      <label>Scroll rounds</label>
+      <select id="scroll-rounds">
+        <option value="3">3 (fast)</option>
+        <option value="5" selected>5 (default)</option>
+        <option value="8">8 (thorough)</option>
+        <option value="12">12 (deep)</option>
+      </select>
+    </div>
+  </div>
+  <label>Niche keywords (comma separated)</label>
+  <input type="text" id="keywords" value="AI, coding, developer, build, SaaS, Claude, GPT, LLM, agent, vibe coding, software, startup, indie hacker, ship, product" />
+  <label>Extra instructions for the generated tweet (optional)</label>
+  <textarea id="extra-instructions" placeholder="e.g. Write in Romanian, keep it under 200 chars, use a hook question..."></textarea>
+  <!-- Actions -->
+  <button id="btn-scrape">🔍 Scrape Feed</button>
+  <button id="btn-generate" disabled>✨ Generate Tweet</button>
+  <!-- Status -->
+  <div class="status-bar" id="status">Ready. Open X.com feed first, then click Scrape.</div>
+  <!-- Found tweets -->
+  <div id="found-section" style="display:none">
+    <hr class="divider">
+    <div class="section-title">📊 Top tweets found</div>
+    <div id="tweets-container"></div>
+  </div>
+  <!-- Output -->
+  <div id="output-section" style="display:none">
+    <hr class="divider">
+    <div class="section-title">🚀 Generated Tweet</div>
+    <div class="output-box" id="output-text"></div>
+    <div class="char-count" id="char-count">0 / 280</div>
+    <button id="btn-copy">📋 Copy to clipboard</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

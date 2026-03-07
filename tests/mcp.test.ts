@@ -43,8 +43,8 @@ describe("MCP tool definitions", () => {
     expect(tool!.description).toContain("Pop");
   });
 
-  it("has 7 total tools", () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(7);
+  it("has 8 total tools", () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(8);
   });
 
   it("all tools have name, description, and inputSchema", () => {

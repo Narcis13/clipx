@@ -1,4 +1,4 @@
-import { getClipboard } from "../platform/index.js";
+import { getClipboard, type SourceInfo } from "../platform/index.js";
 import { detect } from "../core/detector.js";
 import { detectSecret } from "../core/secrets.js";
 import { addEntry, getLastHash, type AddEntryInput } from "./store.js";
@@ -64,11 +64,26 @@ export async function watch(opts: WatchOptions = {}): Promise<void> {
           if (secretCheck.isSecret) continue;
         }
 
+        // Capture source app immediately at change time
+        let source: SourceInfo | null = null;
+        if (clipboard.readSource) {
+          source = await clipboard.readSource();
+        }
+
+        // Skip excluded apps
+        const config2 = loadConfig();
+        if (source?.app && config2.history.excludeApps.includes(source.app)) {
+          continue;
+        }
+
         const input: AddEntryInput = {
           content,
           type: detection.type,
           language: detection.language,
           confidence: detection.confidence,
+          sourceApp: source?.app,
+          sourceBundleId: source?.bundleId,
+          sourceUrl: source?.url,
         };
 
         const entry = addEntry(input);
@@ -80,7 +95,8 @@ export async function watch(opts: WatchOptions = {}): Promise<void> {
             ? content.slice(0, 80).replace(/\n/g, "\\n") + "..."
             : content.replace(/\n/g, "\\n");
           const lang = detection.language ? `:${detection.language}` : "";
-          console.log(`[${detection.type}${lang}] ${preview}`);
+          const src = source?.app ? ` (${source.app})` : "";
+          console.log(`[${detection.type}${lang}]${src} ${preview}`);
         }
 
         // Callback mode: spawn command with entry as stdin

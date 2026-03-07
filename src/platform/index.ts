@@ -1,6 +1,14 @@
 import * as macos from "./macos.js";
 import * as linux from "./linux.js";
 
+export interface SourceInfo {
+  app?: string;
+  bundleId?: string;
+  pid?: number;
+  url?: string;
+  urlType?: string;
+}
+
 export interface PlatformClipboard {
   readPlain(): Promise<string>;
   writePlain(content: string): Promise<void>;
@@ -12,6 +20,7 @@ export interface PlatformClipboard {
   hasImage?(): Promise<boolean>;
   hasFiles?(): Promise<boolean>;
   hasSwiftBridge?(): boolean;
+  readSource?(): Promise<SourceInfo | null>;
 }
 
 function getPlatform(): string {

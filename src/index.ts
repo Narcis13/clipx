@@ -14,6 +14,7 @@ export {
   type ReadResult,
   type PeekResult,
   type RichReadResult,
+  type SourceInfo,
 } from "./core/reader.js";
 export { writeClipboard, restoreClipboard } from "./core/writer.js";
 export { autoFormat, formatJSON, formatSQL, formatCode } from "./transforms/formatter.js";

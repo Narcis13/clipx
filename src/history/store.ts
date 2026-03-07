@@ -15,6 +15,9 @@ export interface HistoryEntry {
   confidence: number;
   length: number;
   preview: string;
+  source_app: string | null;
+  source_bundle_id: string | null;
+  source_url: string | null;
   created_at: string;
 }
 
@@ -65,9 +68,23 @@ export function getDb(dbPath: string = DB_PATH): Database {
       confidence REAL NOT NULL,
       length INTEGER NOT NULL,
       preview TEXT NOT NULL,
+      source_app TEXT,
+      source_bundle_id TEXT,
+      source_url TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Migrate: add source columns if missing (existing DBs)
+  try {
+    db.exec(`ALTER TABLE history ADD COLUMN source_app TEXT`);
+  } catch { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE history ADD COLUMN source_bundle_id TEXT`);
+  } catch { /* column already exists */ }
+  try {
+    db.exec(`ALTER TABLE history ADD COLUMN source_url TEXT`);
+  } catch { /* column already exists */ }
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_history_type ON history(type);
@@ -102,6 +119,9 @@ export interface AddEntryInput {
   type: string;
   language?: string | null;
   confidence: number;
+  sourceApp?: string | null;
+  sourceBundleId?: string | null;
+  sourceUrl?: string | null;
 }
 
 export function shouldExcludeType(type: string): boolean {
@@ -125,9 +145,9 @@ export function addEntry(input: AddEntryInput, dbPath?: string): HistoryEntry {
   }
 
   const preview = makePreview(input.content);
-  const stmt = db.query<HistoryEntry, [string, string, string, string | null, number, number, string]>(
-    `INSERT INTO history (content, content_hash, type, language, confidence, length, preview)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+  const stmt = db.query<HistoryEntry, [string, string, string, string | null, number, number, string, string | null, string | null, string | null]>(
+    `INSERT INTO history (content, content_hash, type, language, confidence, length, preview, source_app, source_bundle_id, source_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`
   );
 
@@ -138,7 +158,10 @@ export function addEntry(input: AddEntryInput, dbPath?: string): HistoryEntry {
     input.language ?? null,
     input.confidence,
     input.content.length,
-    preview
+    preview,
+    input.sourceApp ?? null,
+    input.sourceBundleId ?? null,
+    input.sourceUrl ?? null,
   )!;
 }
 

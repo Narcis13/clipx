@@ -3,12 +3,19 @@ import { detect, detectWithContext, type DetectionResult, type RichContext } fro
 import { detectSecret, redactContent } from "./secrets.js";
 import { addEntry, shouldExcludeType } from "../history/store.js";
 
+export interface SourceInfo {
+  app?: string;
+  bundleId?: string;
+  url?: string;
+}
+
 export interface ReadResult {
   type: string;
   language?: string;
   confidence: number;
   content: string;
   length: number;
+  source?: SourceInfo;
   meta?: Record<string, unknown>;
 }
 
@@ -31,6 +38,18 @@ export async function readClipboard(): Promise<ReadResult> {
   const clipboard = getClipboard();
   const content = await clipboard.readPlain();
 
+  // Capture source app immediately
+  let source: SourceInfo | undefined;
+  if (clipboard.readSource) {
+    const raw = await clipboard.readSource();
+    if (raw) {
+      source = {};
+      if (raw.app) source.app = raw.app;
+      if (raw.bundleId) source.bundleId = raw.bundleId;
+      if (raw.url) source.url = raw.url;
+    }
+  }
+
   // Use rich context if Swift bridge is available
   const richContext = await getRichContext(clipboard);
   const detection = (richContext.hasImage || richContext.hasFiles)
@@ -47,6 +66,9 @@ export async function readClipboard(): Promise<ReadResult> {
           content: `[image data: ${imageContent.length} bytes base64]`,
           type: "image",
           confidence: detection.confidence,
+          sourceApp: source?.app,
+          sourceBundleId: source?.bundleId,
+          sourceUrl: source?.url,
         });
       }
     } catch {
@@ -57,6 +79,7 @@ export async function readClipboard(): Promise<ReadResult> {
       confidence: detection.confidence,
       content: imageContent,
       length: imageContent.length,
+      ...(source ? { source } : {}),
       meta: { ...detection.meta, encoding: "base64", format: "png" },
     };
   }
@@ -73,6 +96,9 @@ export async function readClipboard(): Promise<ReadResult> {
         type: detection.type,
         language: detection.language,
         confidence: detection.confidence,
+        sourceApp: source?.app,
+        sourceBundleId: source?.bundleId,
+        sourceUrl: source?.url,
       });
     }
   } catch {
@@ -85,6 +111,7 @@ export async function readClipboard(): Promise<ReadResult> {
     confidence: detection.confidence,
     content: outputContent,
     length: content.length,
+    ...(source ? { source } : {}),
     ...(detection.meta ? { meta: detection.meta } : {}),
   };
 }
