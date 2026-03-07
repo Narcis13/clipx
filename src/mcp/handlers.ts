@@ -1,6 +1,7 @@
 import {
   readClipboard,
   readClipboardRaw,
+  readClipboardImage,
   peekClipboard,
   typeClipboard,
 } from "../core/reader.js";
@@ -111,5 +112,20 @@ export async function handleClipboardStackPop(): Promise<{
         text: `Popped from stack and written to clipboard: [${item.type}] ${preview}`,
       },
     ],
+  };
+}
+
+export async function handleClipboardReadImage(): Promise<{
+  content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
+}> {
+  const result = await readClipboardImage();
+  if (!result) {
+    return {
+      content: [{ type: "text", text: "No image found on clipboard (Swift bridge may not be available)" }],
+    };
+  }
+  // Return as MCP image content — Claude can visually inspect it
+  return {
+    content: [{ type: "image", data: result.data, mimeType: "image/png" }],
   };
 }

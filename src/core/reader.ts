@@ -37,6 +37,30 @@ export async function readClipboard(): Promise<ReadResult> {
     ? detectWithContext(content, richContext)
     : detect(content);
 
+  // For images: pbpaste returns empty string — fetch actual binary data via Swift bridge
+  if (detection.type === "image" && clipboard.readImage) {
+    const imageData = await clipboard.readImage();
+    const imageContent = imageData ?? "";
+    try {
+      if (!shouldExcludeType("image")) {
+        addEntry({
+          content: `[image data: ${imageContent.length} bytes base64]`,
+          type: "image",
+          confidence: detection.confidence,
+        });
+      }
+    } catch {
+      // best-effort
+    }
+    return {
+      type: "image",
+      confidence: detection.confidence,
+      content: imageContent,
+      length: imageContent.length,
+      meta: { ...detection.meta, encoding: "base64", format: "png" },
+    };
+  }
+
   // Redact secrets by default
   const outputContent =
     detection.type === "secret" ? redactContent(content) : content;
@@ -78,6 +102,19 @@ export async function peekClipboard(): Promise<PeekResult> {
   const detection = (richContext.hasImage || richContext.hasFiles)
     ? detectWithContext(content, richContext)
     : detect(content);
+
+  // For images: show size info without fetching full data into preview
+  if (detection.type === "image" && clipboard.readImage) {
+    const imageData = await clipboard.readImage();
+    const b64len = imageData ? imageData.length : 0;
+    const approxKB = Math.round(b64len * 0.75 / 1024);
+    return {
+      type: "image",
+      confidence: detection.confidence,
+      length: b64len,
+      preview: imageData ? `[PNG image, ~${approxKB}KB]` : "[image - no data available]",
+    };
+  }
 
   const previewLength = 200;
   let preview: string;

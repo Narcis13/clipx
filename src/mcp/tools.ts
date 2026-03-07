@@ -131,4 +131,13 @@ export const TOOL_DEFINITIONS = [
       properties: {},
     },
   },
+  {
+    name: "clipboard_read_image" as const,
+    description:
+      "Read an image from the clipboard and return it as visual content that Claude can see and analyze. Use when the user says 'look at this screenshot', 'what's in this image', 'analyze this', or after a CMD+CTRL+SHIFT+4 screenshot capture. Returns the actual PNG image for visual inspection.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
 ];
