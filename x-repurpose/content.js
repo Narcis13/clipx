@@ -11,12 +11,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ─── Main orchestrator ────────────────────────────────────────────────────────
 async function handleScrapeAndScroll(rounds, keywords) {
   const allTweets = new Map(); // deduplicate by tweet text hash
+  const allRaw    = new Map(); // all tweet texts regardless of filters
   for (let i = 0; i < rounds; i++) {
     // Scrape what's currently visible
-    const batch = scrapeTweetsFromDOM(keywords);
-    batch.forEach(t => {
+    const { matched, raw } = scrapeTweetsFromDOM(keywords);
+    matched.forEach(t => {
       const key = t.handle + '::' + t.text.slice(0, 60);
       if (!allTweets.has(key)) allTweets.set(key, t);
+    });
+    raw.forEach(t => {
+      const key = t.slice(0, 80);
+      if (!allRaw.has(key)) allRaw.set(key, t);
     });
     // Notify popup of progress (best effort, popup might be closed)
     try {
@@ -33,11 +38,12 @@ async function handleScrapeAndScroll(rounds, keywords) {
   }
   // Rank by engagement score and return top results
   const ranked = rankTweets([...allTweets.values()]);
-  return { tweets: ranked };
+  return { tweets: ranked, rawTexts: [...allRaw.values()] };
 }
 // ─── DOM Scraper ──────────────────────────────────────────────────────────────
 function scrapeTweetsFromDOM(keywords) {
-  const results = [];
+  const matched = [];
+  const raw = []; // all tweet texts seen, no filters applied
   // X renders tweets as <article> elements with data-testid="tweet"
   const articles = document.querySelectorAll('article[data-testid="tweet"]');
   articles.forEach(article => {
@@ -49,10 +55,12 @@ function scrapeTweetsFromDOM(keywords) {
       const tweetTextEl = article.querySelector('[data-testid="tweetText"]');
       if (!tweetTextEl) return;
       const text = tweetTextEl.innerText.trim();
-      if (!text || text.length < 20) return;
+      if (!text || text.length < 10) return;
+      // Collect every tweet text for debug view
+      raw.push(text);
       // ── Keyword filter ──
       const textLower = text.toLowerCase();
-      const hasKeyword = keywords.length === 0 || keywords.some(k => textLower.includes(k));
+      const hasKeyword = keywords.length === 0 || keywords.some(k => textLower.includes(k.toLowerCase()));
       if (!hasKeyword) return;
       // ── Author ──
       const userNameEl = article.querySelector('[data-testid="User-Name"]');
@@ -63,9 +71,11 @@ function scrapeTweetsFromDOM(keywords) {
         author = spans[0]?.innerText?.trim() || '';
         // Handle is usually in an <a> with href starting with /
         const handleLink = userNameEl.querySelector('a[href^="/"]');
-        handle = handleLink?.getAttribute('href')?.replace('/', '') || '';
+        handle = handleLink?.getAttribute('href')?.replace(/^\//, '') || '';
       }
-      if (!handle) return;
+      // Don't skip on missing handle — use author name as fallback
+      if (!handle && !author) return;
+      if (!handle) handle = author.replace(/\s+/g, '').toLowerCase();
       // ── Engagement metrics ──
       const likes    = parseMetric(article, '[data-testid="like"]');
       const retweets = parseMetric(article, '[data-testid="retweet"]');
@@ -74,14 +84,12 @@ function scrapeTweetsFromDOM(keywords) {
       // ── Engagement score (weighted) ──
       // Likes × 3 + RTs × 5 + replies × 2 + views × 0.01
       const score = (likes * 3) + (retweets * 5) + (replies * 2) + (views * 0.01);
-      // Filter out zero-engagement tweets
-      if (score < 5) return;
-      results.push({ author, handle, text, likes, retweets, replies, views, score });
+      matched.push({ author, handle, text, likes, retweets, replies, views, score });
     } catch (e) {
       // Skip malformed tweet nodes
     }
   });
-  return results;
+  return { matched, raw };
 }
 // ─── Parse engagement numbers (e.g., "1.2K", "43K", "1M") ───────────────────
 function parseMetric(article, testId) {
@@ -91,13 +99,13 @@ function parseMetric(article, testId) {
   const spans = el.querySelectorAll('span');
   for (const span of spans) {
     const txt = span.innerText?.trim();
-    if (txt && /^[\\d.,]+[KMB]?$/.test(txt)) {
+    if (txt && /^[\d.,]+[KMB]?$/.test(txt)) {
       return parseHumanNumber(txt);
     }
   }
   // Fallback: aria-label on the button (e.g. "1234 Likes")
   const label = el.getAttribute('aria-label') || '';
-  const match = label.match(/^([\\d,]+)/);
+  const match = label.match(/^([\d,]+)/);
   if (match) return parseInt(match[1].replace(/,/g, ''), 10) || 0;
   return 0;
 }
@@ -106,11 +114,11 @@ function parseViewCount(article) {
   const all = article.querySelectorAll('span, a');
   for (const el of all) {
     const label = el.getAttribute('aria-label') || '';
-    const match = label.match(/^([\\d.,]+[KMB]?)\\s+views?/i);
+    const match = label.match(/^([\d.,]+[KMB]?)\s+views?/i);
     if (match) return parseHumanNumber(match[1]);
     // Sometimes the text itself says "43K views"
     const txt = el.innerText?.trim() || '';
-    const m2  = txt.match(/^([\\d.,]+[KMB]?)\\s+views?/i);
+    const m2  = txt.match(/^([\d.,]+[KMB]?)\s+views?/i);
     if (m2) return parseHumanNumber(m2[1]);
   }
   // X also uses [data-testid="app-text-transition-container"] near analytics icon

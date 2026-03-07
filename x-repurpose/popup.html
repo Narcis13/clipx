@@ -181,6 +181,32 @@
       margin-bottom: 10px;
     }
     .char-count.over { color: #f4212e; }
+    .debug-toggle {
+      background: none;
+      border: none;
+      color: #71767b;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px 0;
+      width: auto;
+      text-align: left;
+      font-weight: 400;
+      margin-bottom: 6px;
+    }
+    .debug-toggle:hover { color: #e7e9ea; }
+    #debug-raw {
+      width: 100%;
+      height: 160px;
+      background: #0a0d14;
+      border: 1px solid #2f3336;
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: #71767b;
+      font-size: 11px;
+      font-family: monospace;
+      resize: vertical;
+      margin-bottom: 14px;
+    }
   </style>
 </head>
 <body>
@@ -220,6 +246,14 @@
   <button id="btn-generate" disabled>✨ Generate Tweet</button>
   <!-- Status -->
   <div class="status-bar" id="status">Ready. Open X.com feed first, then click Scrape.</div>
+  <!-- Debug raw scrape view -->
+  <div id="debug-section" style="display:none">
+    <hr class="divider">
+    <button class="debug-toggle" id="debug-toggle">▶ Show raw scraped tweets (debug)</button>
+    <div id="debug-body" style="display:none">
+      <textarea id="debug-raw" readonly placeholder="Raw tweet texts will appear here after scraping..."></textarea>
+    </div>
+  </div>
   <!-- Found tweets -->
   <div id="found-section" style="display:none">
     <hr class="divider">

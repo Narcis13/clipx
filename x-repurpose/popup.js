@@ -15,6 +15,10 @@ const modelSelect    = document.getElementById('model');
 const keywordsInput  = document.getElementById('keywords');
 const extraInput     = document.getElementById('extra-instructions');
 const scrollRounds   = document.getElementById('scroll-rounds');
+const debugSection   = document.getElementById('debug-section');
+const debugToggle    = document.getElementById('debug-toggle');
+const debugBody      = document.getElementById('debug-body');
+const debugRaw       = document.getElementById('debug-raw');
 // ─── Persist settings ────────────────────────────────────────────────────────
 chrome.storage.local.get(['apiKey', 'model', 'keywords', 'extraInstructions'], (data) => {
   if (data.apiKey)           apiKeyInput.value  = data.apiKey;
@@ -34,6 +38,12 @@ apiKeyInput.addEventListener('change', saveSettings);
 modelSelect.addEventListener('change', saveSettings);
 keywordsInput.addEventListener('change', saveSettings);
 extraInput.addEventListener('change', saveSettings);
+// ─── Debug toggle ─────────────────────────────────────────────────────────────
+debugToggle.addEventListener('click', () => {
+  const open = debugBody.style.display !== 'none';
+  debugBody.style.display = open ? 'none' : 'block';
+  debugToggle.textContent = (open ? '▶' : '▼') + ' Show raw scraped tweets (debug)';
+});
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function setStatus(msg, type = '') {
   statusEl.className = 'status-bar ' + type;
@@ -102,8 +112,21 @@ btnScrape.addEventListener('click', async () => {
     });
     if (result.error) throw new Error(result.error);
     scrapedTweets = result.tweets;
+
+    // Always show debug section with raw scraped texts
+    const rawTexts = result.rawTexts || [];
+    debugSection.style.display = 'block';
+    if (rawTexts.length === 0) {
+      debugRaw.value = '(no tweet text elements found — X may have changed its DOM)';
+    } else {
+      debugRaw.value = rawTexts.map((t, i) => `[${i + 1}] ${t}`).join('\n\n---\n\n');
+    }
+
     if (scrapedTweets.length === 0) {
-      setStatus('No matching tweets found. Try different keywords or more scroll rounds.', 'error');
+      const msg = rawTexts.length === 0
+        ? '❌ No tweets scraped at all — check the debug section below.'
+        : `No keyword matches in ${rawTexts.length} scraped tweets. Check debug section to see what was found, then adjust keywords.`;
+      setStatus(msg, 'error');
     } else {
       setStatus(`✅ Found ${scrapedTweets.length} matching tweets. Top 2 selected by engagement score.`, 'success');
       renderTweets(scrapedTweets.slice(0, 5));
