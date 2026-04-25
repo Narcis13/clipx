@@ -1,0 +1,12 @@
+{
+  "name": "reply-master-extension",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build.ts --watch",
+    "build": "bun run build.ts"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "@types/chrome": "^0.0.270"
+  }
+}

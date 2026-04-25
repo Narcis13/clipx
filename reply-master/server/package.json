@@ -1,0 +1,10 @@
+{
+  "name": "reply-master-server",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  }
+}

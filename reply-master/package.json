@@ -1,0 +1,10 @@
+{
+  "name": "reply-master",
+  "private": true,
+  "workspaces": ["server", "extension"],
+  "scripts": {
+    "dev:server": "bun --cwd=server run dev",
+    "dev:ext": "bun --cwd=extension run dev",
+    "build:ext": "bun --cwd=extension run build"
+  }
+}
