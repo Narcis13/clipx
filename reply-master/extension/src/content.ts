@@ -23,6 +23,26 @@ if (!w.__replyMasterLoaded) {
         .catch((e) => sendResponse({ ok: false, error: String(e) }));
       return true;
     }
+    if (msg?.type === 'SCRAPE_POST') {
+      try {
+        const ctx = scrapePostContext();
+        sendResponse({ ok: !!ctx, ctx });
+      } catch (e: any) {
+        sendResponse({ ok: false, error: String(e?.message ?? e) });
+      }
+      return;
+    }
+    if (msg?.type === 'POST_GIVEN_REPLY') {
+      const text = String(msg.text ?? '').trim();
+      if (!text) {
+        sendResponse({ ok: false, error: 'empty reply text' });
+        return;
+      }
+      postReply(text)
+        .then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: String(e?.message ?? e) }));
+      return true;
+    }
   });
 }
 

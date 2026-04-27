@@ -3,7 +3,7 @@
   "name": "Reply Master",
   "version": "0.1.0",
   "description": "Auto-generate thoughtful replies on X via local AI",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "tabs", "clipboardWrite"],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
@@ -14,6 +14,11 @@
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://x.com/i/grok*"],
+      "js": ["grok.js"],
       "run_at": "document_idle"
     }
   ],

@@ -3,16 +3,46 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { font: 13px system-ui; width: 260px; padding: 12px; }
+    body { font: 13px system-ui; width: 320px; padding: 12px; }
+    h3 { margin: 0 0 8px; }
     button { width: 100%; padding: 8px; border: 0; border-radius: 8px; background: #1d9bf0; color: #fff; cursor: pointer; }
-    button:disabled { opacity: .5; }
-    #status { margin-top: 8px; color: #536471; }
+    button.secondary { background: #2a3441; }
+    button:disabled { opacity: .5; cursor: default; }
+    .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    #status { margin-top: 8px; color: #536471; min-height: 16px; }
+    #preview-wrap { margin-top: 10px; display: none; }
+    #preview-wrap.visible { display: block; }
+    #preview {
+      border: 1px solid #cfd9de;
+      border-radius: 8px;
+      padding: 8px;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font: 13px/1.4 system-ui;
+      background: #f7f9f9;
+      color: #0f1419;
+    }
+    #preview-actions { display: flex; gap: 6px; margin-top: 6px; }
+    #preview-actions button { flex: 1; }
   </style>
 </head>
 <body>
-  <h3 style="margin:0 0 8px">Reply Master</h3>
+  <h3>Reply Master</h3>
+  <div class="row">
+    <input type="checkbox" id="grok-toggle">
+    <label for="grok-toggle">Grok Reply</label>
+  </div>
   <button id="go">Generate &amp; Post Reply</button>
   <div id="status"></div>
+  <div id="preview-wrap">
+    <div id="preview"></div>
+    <div id="preview-actions">
+      <button id="post" type="button">Post Reply</button>
+      <button id="discard" class="secondary" type="button">Discard</button>
+    </div>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

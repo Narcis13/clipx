@@ -8,7 +8,7 @@ await mkdir(outdir, { recursive: true });
 await cp('public', outdir, { recursive: true });
 
 const opts = {
-  entryPoints: ['src/content.ts', 'src/background.ts', 'src/popup.ts'],
+  entryPoints: ['src/content.ts', 'src/background.ts', 'src/popup.ts', 'src/grok.ts'],
   bundle: true,
   format: 'iife' as const,
   target: 'chrome120',
